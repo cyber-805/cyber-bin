@@ -4,47 +4,25 @@ const app = express();
 
 const DEVELOPER = "CY_AGNT";
 
-// 3 Keys with Details
-const API_KEYS = {
-    "CYBER_OWNER": { owner: "User1", expiry: "2026-12-31", limit: 900000000000 },
-    "EXR&DEBA": { owner: "User2", expiry: "2026-12-15", limit: 169 },
-    "CYBER_TEST": { owner: "Guest", expiry: "2026-04-29", limit: 69 }
-};
-
-const usageMap = new Map();
-
-app.get('/api/bin/:bin', async (req, res) => {
+// ✅ Public Endpoint (No Key System)
+app.get('/bin/:bin', async (req, res) => {
     const { bin } = req.params;
-    const { key } = req.query;
-    const today = new Date().toDateString();
 
-    // 1. Key Validation
-    if (!key || !API_KEYS[key]) {
-        return res.status(401).json({ Status: "FAILED", Developer: DEVELOPER, Message: "Invalid Key!" });
-    }
-
-    const keyInfo = API_KEYS[key];
-
-    // 2. Expiry Check
-    if (new Date() > new Date(keyInfo.expiry)) {
-        return res.status(403).json({ Status: "FAILED", Developer: DEVELOPER, Message: "Key Expired!" });
-    }
-
-    // 3. Limit Check
-    const userKey = `${key}-${today}`;
-    const currentUsage = usageMap.get(userKey) || 0;
-    if (currentUsage >= keyInfo.limit) {
-        return res.status(429).json({ Status: "FAILED", Message: "Daily Limit Reached!" });
+    // Basic validation
+    if (!bin || bin.length < 6) {
+        return res.status(400).json({
+            Status: "FAILED",
+            Developer: DEVELOPER,
+            Message: "Invalid BIN (minimum 6 digits required)"
+        });
     }
 
     try {
         const response = await axios.get(`https://data.handyapi.com/bin/${bin}`);
         const data = response.data;
-        usageMap.set(userKey, currentUsage + 1);
 
-        // 4. FULL RESPONSE (Merging Everything)
         res.json({
-            Dev: DEVELOPER,
+            Developer: DEVELOPER,
             Status: data.Status || "SUCCESS",
             BIN_Data: {
                 BIN: bin,
@@ -65,7 +43,11 @@ app.get('/api/bin/:bin', async (req, res) => {
         });
 
     } catch (error) {
-        res.status(500).json({ Status: "FAILED", Message: "Invalid BIN or API Error" });
+        res.status(500).json({
+            Status: "FAILED",
+            Developer: DEVELOPER,
+            Message: "Invalid BIN or API Error"
+        });
     }
 });
 
